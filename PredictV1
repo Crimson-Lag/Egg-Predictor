@@ -2,6 +2,7 @@ local players = game:GetService("Players")
 local collectionService = game:GetService("CollectionService")
 local localPlayer = players.LocalPlayer or players:GetPlayers()[1]
 
+-- Pet chance definitions per egg type
 local eggChances = {
     ["Common Egg"] = {["Dog"] = 33, ["Bunny"] = 33, ["Golden Lab"] = 33},
     ["Uncommon Egg"] = {["Black Bunny"] = 25, ["Chicken"] = 25, ["Cat"] = 25, ["Deer"] = 25},
@@ -15,18 +16,30 @@ local eggChances = {
     ["Common Summer Egg"] = {["Starfish"] = 50, ["Seafull"] = 25, ["Crab"] = 25},
     ["Rare Summer Egg"] = {["Flamingo"] = 30, ["Toucan"] = 25, ["Sea Turtle"] = 20, ["Orangutan"] = 15, ["Seal"] = 10},
     ["Paradise Egg"] = {["Ostrich"] = 43, ["Peacock"] = 33, ["Capybara"] = 24, ["Scarlet Macaw"] = 3, ["Mimic Octopus"] = 1},
-    ["Premium Night Egg"] = {["Hedgehog"] = 50, ["Mole"] = 26, ["Frog"] = 14, ["Echo Frog"] = 10}
-    ["Primal Egg"] = {["Parasaurolophus"] = 34,["Iguanodon"] = 32.5,["Pachycephalosaurus"] = 28,["Dilophosaurus"] = 3,["Ankylosaurus"] = 1,["Spinosaurus"] = 40}
+    ["Premium Night Egg"] = {["Hedgehog"] = 50, ["Mole"] = 26, ["Frog"] = 14, ["Echo Frog"] = 10}, -- ✅ Fixed comma
+    ["Primal Egg"] = {
+        ["Parasaurolophus"] = 34,
+        ["Iguanodon"] = 32.5,
+        ["Pachycephalosaurus"] = 28,
+        ["Dilophosaurus"] = 3,
+        ["Ankylosaurus"] = 1,
+        ["Spinosaurus"] = 40
+    }
 }
 
+-- Which eggs to display real names instead of random pet predictions
 local realESP = {
-    ["Common Egg"] = true, ["Uncommon Egg"] = true, ["Rare Egg"] = true,
-    ["Common Summer Egg"] = true, ["Rare Summer Egg"] = true
+    ["Common Egg"] = true,
+    ["Uncommon Egg"] = true,
+    ["Rare Egg"] = true,
+    ["Common Summer Egg"] = true,
+    ["Rare Summer Egg"] = true
 }
 
 local displayedEggs = {}
 local autoStopOn = true
 
+-- Random pet selection based on weights
 local function weightedRandom(options)
     local valid = {}
     for pet, chance in pairs(options) do
@@ -44,6 +57,7 @@ local function weightedRandom(options)
     return valid[1].pet
 end
 
+-- Prevent same pet being shown repeatedly unless needed
 local function getNonRepeatingRandomPet(eggName, lastPet)
     local pool = eggChances[eggName]
     if not pool then return nil end
@@ -60,6 +74,7 @@ local function getNonRepeatingRandomPet(eggName, lastPet)
     return selectedPet
 end
 
+-- ESP GUI creation
 local function createEspGui(object, labelText)
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "FakePetESP"
@@ -82,6 +97,7 @@ local function createEspGui(object, labelText)
     return billboard
 end
 
+-- Add ESP to egg instance
 local function addESP(egg)
     if egg:GetAttribute("OWNER") ~= localPlayer.Name then return end
     local eggName = egg:GetAttribute("EggName")
@@ -106,6 +122,7 @@ local function addESP(egg)
     }
 end
 
+-- Remove ESP from egg
 local function removeESP(egg)
     local objectId = egg:GetAttribute("OBJECT_UUID")
     if objectId and displayedEggs[objectId] then
@@ -114,18 +131,22 @@ local function removeESP(egg)
     end
 end
 
+-- Apply ESP to existing eggs
 for _, egg in collectionService:GetTagged("PetEggServer") do
     addESP(egg)
 end
 
+-- Watch for egg additions/removals
 collectionService:GetInstanceAddedSignal("PetEggServer"):Connect(addESP)
 collectionService:GetInstanceRemovedSignal("PetEggServer"):Connect(removeESP)
 
+-- GUI Setup
 local gui = Instance.new("ScreenGui")
 gui.Name = "RandomizerGUI"
 gui.ResetOnSpawn = false
 gui.Parent = localPlayer:WaitForChild("PlayerGui")
 
+-- Toggle Auto Stop
 local stopBtn = Instance.new("TextButton", gui)
 stopBtn.Size = UDim2.new(0, 150, 0, 40)
 stopBtn.Position = UDim2.new(1, -190, 0, 0)
@@ -139,6 +160,7 @@ stopBtn.MouseButton1Click:Connect(function()
     stopBtn.Text = autoStopOn and "[A] Auto Stop: ON" or "[A] Auto Stop: OFF"
 end)
 
+-- Info Button
 local info = Instance.new("TextButton", gui)
 info.Size = UDim2.new(0, 30, 0, 40)
 info.Position = UDim2.new(1, -35, 0, 0)
@@ -151,12 +173,13 @@ info.MouseButton1Click:Connect(function()
     pcall(function()
         game:GetService("StarterGui"):SetCore("SendNotification", {
             Title = "Info",
-            Text = "Auto Stop when found: Raccoon, Dragonfly, Queen Bee, Red Fox, Disco Bee, Butterfly.",
+            Text = "Auto Stop when found: Raccoon, Dragonfly, Queen Bee, T-Rex, Disco Bee, Butterfly.",
             Duration = 5
         })
     end)
 end)
 
+-- Manual Reroll Display
 local autoBtn = Instance.new("TextButton", gui)
 autoBtn.Size = UDim2.new(0, 150, 0, 40)
 autoBtn.Position = UDim2.new(1, -190, 0, 45)
@@ -166,7 +189,7 @@ autoBtn.Text = "[B] Reroll Pet Display"
 autoBtn.TextScaled = true
 
 autoBtn.MouseButton1Click:Connect(function()
-    for objectId, data in pairs(displayedEggs) do
+    for _, data in pairs(displayedEggs) do
         local pet = getNonRepeatingRandomPet(data.eggName, data.lastPet)
         if pet and data.label then
             data.label.Text = data.eggName .. " | " .. pet
